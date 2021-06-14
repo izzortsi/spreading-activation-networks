@@ -1,5 +1,4 @@
 # %%
-from ast import List
 import graph_tool.all as gt
 import numpy as np
 import numpy.random as npr
@@ -8,8 +7,8 @@ from matplotlib import cm
 import matplotlib.colors as mplc
 import os, sys
 from gi.repository import Gtk, Gdk, GdkPixbuf, GObject, GLib
-from pyrsistent import v
 
+import plot_functions
 
 # %%
 GRAD_FACTOR = 50
@@ -129,3 +128,10 @@ plot_graphs(g)
 # %%
 
 ####AGORA COMEçA A DINAMICA
+
+def update_state():
+    pass
+
+if __name__ == "__main__":
+    g = set_graph()
+    plot_gtk(g)
