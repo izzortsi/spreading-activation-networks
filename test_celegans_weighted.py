@@ -81,7 +81,7 @@ def set_graph(type="gtc"):
 ####DYNAMICS PARAMETERS
 SPIKE_THRESHOLD = 0.90
 POTENTIAL_LOSS = 0.8
-MAX_COUNT = 600
+MAX_COUNT = 1500
 #OFFSCREEN = True
 OFFSCREEN = sys.argv[1] == "offscreen" if len(sys.argv) > 1 else False
 
@@ -110,9 +110,19 @@ def update_state():
         for nb in nbs:
             w = g.ep.weight[g.edge(spiker, nb)]
             g.vp.activation[nb] += (spread_val)*w
-            sum_w += w
-    g.vp.activation[spiker] *= POTENTIAL_LOSS
-    
+            sum_w += (spread_val)*w
+        g.vp.activation[spiker] *= POTENTIAL_LOSS*sum_w
+    else:
+        # print(spiker)
+        # print(g.get_in_neighbors(spiker))
+        if spiker >= SPIKE_THRESHOLD:
+            secnd_nbhood = g.get_out_neighbors(npr.choice(g.get_in_neighbors(spiker)))
+            # print(secnd_nbhood)
+            new_nb = npr.choice(secnd_nbhood)
+            if new_nb != spiker:
+                e = g.add_edge(spiker, new_nb)
+                g.ep.weight[e] = g.vp.activation[spiker]*POTENTIAL_LOSS/2
+            g.vp.activation[spiker] -= POTENTIAL_LOSS/2            
         #if g.vp.activation[nb] >= SPIKE_THRESHOLD:
              
 
@@ -133,12 +143,6 @@ def update_state():
 
 # %%
 g = set_graph()
-
-g
-# %%
-g.properties
-# %%
-
 pos = gt.sfdp_layout(g)
 PLOT_PARAMS = plot_params(g, None)
 # %%
@@ -153,6 +157,7 @@ if not OFFSCREEN:
     pos, 
     geometry=(720, 720),
     vertex_shape="circle",
+    edge_pen_width=gt.prop_to_size(g.ep.weight, 0.2, 1.8, power=2),
     **PLOT_PARAMS,
     )
 else:
