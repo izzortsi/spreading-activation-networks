@@ -11,8 +11,34 @@ from plot_functions import *
 
 
 
+
+# %% = list(g.ep.values())[0]
+g = gt.collection.data["celegansneural"]
+
+# %%
+tpos = g.vp.pos.get_2d_array([0, 1]).T
+
+
+# %%
+g.ep.value.a
+# %%
+g.list_properties()
 # %%
 
+def init_elegans_net():
+    
+    g = gt.collection.data["celegansneural"]
+    
+    g.ep.weights = g.new_ep("double")
+    norm_eweigts = minmax(g.ep.value.a)
+    g.ep.weights.a = norm_eweigts
+    del g.ep["value"]
+    
+    g.vp.state = g.new_vertex_property("int")
+    g.vp.activation = g.new_vertex_property("float")
+    
+
+# %%
 
 def init_graph():
     g = gt.collection.data["celegansneural"]

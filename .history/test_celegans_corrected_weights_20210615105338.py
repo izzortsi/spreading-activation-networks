@@ -11,11 +11,47 @@ from plot_functions import *
 
 
 
+
+# %% = list(g.ep.values())[0]
+g = gt.collection.data["celegansneural"]
+
+# %%
+tpos = g.vp.pos.get_2d_array([0, 1]).T
+
+
+# %%
+g.ep.value.a
+# %%
+g.list_properties()
 # %%
 
-
-def init_graph():
+def init_elegans_net():
+    
     g = gt.collection.data["celegansneural"]
+    
+    g.ep.weights = g.new_ep("double")
+    norm_eweigts = minmax(g.ep.value.a)
+    g.ep.weights.a = norm_eweigts
+    del g.ep["value"]
+
+    g.vp.state = g.new_vertex_property("int")
+    g.vp.activation = g.new_vertex_property("float")
+        
+    n_vertices = g.num_vertices()
+    n_edges = g.num_edges()
+
+    activations = npr.normal(size=n_vertices)
+    activations = minmax(activations)
+
+    g.vp.state.a = np.full(n_vertices, 0)
+    g.vp.activation.a = activations
+
+    return g
+
+# %%
+
+def init_graph(g):
+
     treemap = gt.min_spanning_tree(g)
     gmst = gt.GraphView(g, efilt=treemap)
     gtclos = gt.transitive_closure(gmst)

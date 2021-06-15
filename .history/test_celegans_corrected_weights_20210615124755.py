@@ -10,12 +10,39 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GObject, GLib
 from plot_functions import *
 
 
+# %%
+
+def init_elegans_net():
+    
+    g = gt.collection.data["celegansneural"]
+    
+    g.ep.weight = g.new_ep("double")
+    norm_eweights = minmax(g.ep.value.a)
+    g.ep.weight.a = norm_eweights
+
+    del g.ep["value"]
+    del g.gp["description"]
+    del g.gp["readme"]
+    del g.vp["label"]
+    
+    g.vp.state = g.new_vertex_property("int")
+    g.vp.activation = g.new_vertex_property("float")
+        
+    n_vertices = g.num_vertices()
+    n_edges = g.num_edges()
+
+    activations = npr.normal(size=n_vertices)
+    activations = minmax(activations)
+
+    g.vp.state.a = np.full(n_vertices, 0)
+    g.vp.activation.a = activations
+
+    return g
 
 # %%
 
+def init_graph(g):
 
-def init_graph():
-    g = gt.collection.data["celegansneural"]
     treemap = gt.min_spanning_tree(g)
     gmst = gt.GraphView(g, efilt=treemap)
     gtclos = gt.transitive_closure(gmst)
@@ -28,28 +55,6 @@ def minmax(a):
     return a/np.max(a)
 
 
-def set_graph_properties(g):
-    
-    g.vp.state = g.new_vertex_property("int")
-    g.vp.activation = g.new_vertex_property("float")
-    g.ep.weight = g.new_edge_property("float")
-
-    n_vertices = g.num_vertices()
-    n_edges = g.num_edges()
-
-    activations = npr.normal(size=n_vertices)
-    activations = minmax(activations)
-    
-    eweights = npr.normal(size=n_edges)
-    eweights = minmax(eweights)
-    
-    print(f"activations: max {np.max(activations)}, min {np.min(activations)}")
-    print(f"eweights: max {np.max(eweights)}, min {np.min(eweights)}")
-    # print(activations)
-    g.vp.state.a = np.full(n_vertices, 0)
-    g.vp.activation.a = activations
-    g.ep.weight.a = eweights
-
 
 # %%
 """
@@ -60,14 +65,13 @@ type being either the original graph "g", the MST of it
 to "gtc".
 """
 def set_graph(type="gtc"):
+    g = init_elegans_net()
+    graphs = init_graph(g)
+    g = graphs["g"]
+    gmst = graphs["gmst"]
+    gtc = graphs["gtc"]
 
-    graphs = init_graph()
-
-    g = graphs[type]
-
-    set_graph_properties(g)
-
-    return g
+    return g, gmst, gtc
 
 
 
@@ -83,11 +87,17 @@ MAX_COUNT = 600
 OFFSCREEN = sys.argv[1] == "offscreen" if len(sys.argv) > 1 else False
 
 # %%
-
-##
+g, gmst, gtc = set_graph()
 
 # %%
+
+g = gmst
+
+
+
 count = 0
+
+# %%
 
 def update_state():
 
@@ -104,10 +114,33 @@ def update_state():
     if nbsize != 0:
         spread_val = spiker_activation/nbsize
         for nb in nbs:
-            g.vp.activation[nb] += spread_val
-    
-    g.vp.activation[spiker] *= POTENTIAL_LOSS
-    
+            w = g.ep.weight[(spiker, nb)]
+            g.vp.activation[nb] += spread_val*w
+            g.vp.activation[spiker] -= spread_val*w
+    else:
+        if g.vp.activation[spiker] >= 1:
+
+            def get_closest_nonnb(v):
+                check = False
+                # chosen = None
+                nth_nbs = g.get_all_neighbors(g.get_in_neighbors(v))
+                while not check:
+                    # chosen = npr.choice(nth_nbs)
+
+                    for nthnb in nth_nbs:
+                        
+                        nthnb_edges = set(g.get_edges(nthnb))
+                        
+                        if not((v, nthnb) in nthnb_edges
+                            or (nthnb, v) in nthnb_edges):
+                            
+                            nedge = g.add_edge(v, nthnb)
+                            g.ep.weight[nedge] = min(g.vp.activation/2, 1)
+                            g.vp.activation /= 2
+                            return
+
+                    nth_nbs = g.get_all_neighbors(nth_nbs)   
+            get_closest_nonnb(spiker)     
         #if g.vp.activation[nb] >= SPIKE_THRESHOLD:
              
 
@@ -127,7 +160,6 @@ def update_state():
 
 
 # %%
-g = set_graph()
 pos = gt.sfdp_layout(g)
 PLOT_PARAMS = plot_params(g, None)
 

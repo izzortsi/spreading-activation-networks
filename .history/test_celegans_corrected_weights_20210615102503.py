@@ -12,7 +12,33 @@ from plot_functions import *
 
 
 # %%
+list(g.ep.values())[0]
 
+# %% = list(g.ep.values())[0]
+g = gt.collection.data["celegansneural"]
+
+# %%
+g.ep.value[1]
+# %%
+
+pos = g.new_vp("vector<double>")
+# %%
+g.vp.pos[2]
+
+# %%
+
+def init_elegans_net():
+    
+    g = gt.collection.data["celegansneural"]
+    
+    g.ep.weights = g.new_ep("float")
+    norm_eweigts = minmax(g.ep.value.a)
+    g.ep.weights.a = norm_eweigts
+    del g.ep["value"]
+
+    
+
+# %%
 
 def init_graph():
     g = gt.collection.data["celegansneural"]
