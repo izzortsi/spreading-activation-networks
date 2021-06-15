@@ -16,10 +16,6 @@ I'd like to put them to reproduce, as if they were "accumulating" too much
 activation and needed to dissipate it, without any means to do so
 """
 
-
-# %%
-
-
 def init_graph():
     g = gt.collection.data["celegansneural"]
     treemap = gt.min_spanning_tree(g)
@@ -54,7 +50,10 @@ def set_graph_properties(g):
     # print(activations)
     g.vp.state.a = np.full(n_vertices, 0)
     g.vp.activation.a = activations
+    print(g)
     g.ep.weight.a = eweights
+
+    return g
 
 
 # %%
@@ -71,7 +70,7 @@ def set_graph(type="gtc"):
 
     g = graphs[type]
 
-    set_graph_properties(g)
+    g = set_graph_properties(g)
 
     return g
 
@@ -84,8 +83,9 @@ def set_graph(type="gtc"):
 ####DYNAMICS PARAMETERS
 SPIKE_THRESHOLD = 0.90
 POTENTIAL_LOSS = 0.8
-max_count = 2000
-
+MAX_COUNT = 600
+#OFFSCREEN = True
+OFFSCREEN = sys.argv[1] == "offscreen" if len(sys.argv) > 1 else False
 
 # %%
 
@@ -100,51 +100,64 @@ def update_state():
 
     spiker_activation = np.max(g.vp.activation.a)
 
-    spiker = npr.choice(gt.find_vertex_range(g, g.vp.activation, [min(SPIKE_THRESHOLD, spiker_activation), 1.0]), 1)[0]
-    print(gt.find_vertex_range(g, g.vp.activation, [SPIKE_THRESHOLD, 1.0]))
+    spiker = gt.find_vertex(g, g.vp.activation, spiker_activation)[0]
 
     nbs = g.get_out_neighbors(spiker)
     
     nbsize = len(nbs)
-    spread_val = spiker_activation/nbsize
-
+    
     if nbsize != 0:
-        g.vp.activation[spiker] *= POTENTIAL_LOSS
+        spread_val = spiker_activation/nbsize
         for nb in nbs:
             g.vp.activation[nb] += spread_val
+    
+    g.vp.activation[spiker] *= POTENTIAL_LOSS
+    
         #if g.vp.activation[nb] >= SPIKE_THRESHOLD:
              
 
     win.graph.regenerate_surface()
     win.graph.queue_draw()
+        
+    if OFFSCREEN:
+        pixbuf = win.get_pixbuf()
+        pixbuf.savev(r'./frames/san%06d.png' % count, 'png', [], [])
     
     count += 1
 
-    if count >= max_count:
+    if count >= MAX_COUNT:
         sys.exit(0)
 
     return True
 
 
 # %%
-g = set_graph()
+g = set_graph(type="gmst")
+pos = gt.sfdp_layout(g)
 PLOT_PARAMS = plot_params(g, None)
 
-pos = gt.sfdp_layout(g)
-win = gt.GraphWindow(g, pos, geometry=(500, 500),
+
+if OFFSCREEN and not os.path.exists("./frames"):
+    os.mkdir("./frames")
+
+# This creates a GTK+ window with the initial graph layout
+if not OFFSCREEN:
+    win = gt.GraphWindow(g, 
+    pos, 
+    geometry=(720, 720),
     vertex_shape="circle",
-    **PLOT_PARAMS
+    **PLOT_PARAMS,
     )
+else:
+    win = Gtk.OffscreenWindow()
+    win.set_default_size(720, 720)
+    win.graph = gt.GraphWidget(g, 
+    pos,
+    vertex_shape="circle",
+    **PLOT_PARAMS,
+    )
+    win.add(win.graph)
 
-
-# %%
-npr.choice([1, 2, 3], 1)
-# %%
-spiker_activation = np.max(g.vp.activation.a)
-spiker = npr.choice(gt.find_vertex(g, g.vp.activation, spiker_activation), 1)[0]
-
-# %%
-spiker
 
 # %%
     
@@ -152,4 +165,6 @@ cid = GLib.idle_add(update_state)
 win.connect("delete_event", Gtk.main_quit)
 win.show_all()
 Gtk.main()  
+# %%
+
 # %%
